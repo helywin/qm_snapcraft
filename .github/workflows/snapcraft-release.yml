@@ -31,8 +31,8 @@ jobs:
         id: build_snap
         run: |
           # 使用 snapcraft 构建 Snap 包
-          ln -sf snap/snapcraft.yaml qm/snapcraft.yaml
-          cd qm
+          cp snap/snapcraft.yaml qm
+          cd qm && ls
           snapcraft
           # 查找构建的 .snap 文件
           SNAP_PATH=$(find . -name '*.snap' | head -n 1)
