@@ -1,10 +1,14 @@
 name: Build and Release Snap Package
 
 # 当任何标签被推送到仓库时触发此工作流
+# on:
+#   push:
+#     tags:
+#       - '*'
 on:
   push:
-    tags:
-      - '*'
+    branches:
+      - '**' # 监听所有分支的 push 事件
 
 # 设置工作流所需的权限
 permissions:
@@ -18,58 +22,47 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 第二步：设置 Snapcraft 并构建 .snap 包
-      # 此 Action 会自动查找并使用您仓库根目录下的 `snapcraft.yaml` 文件
-      - name: Set up Snapcraft and Build Snap
-        uses: snapcore/action-snapcraft@v1
-        id: build_snap
-        # 注意: 此 Action 默认执行 `snapcraft pack` 命令。
-        # 如果您的 Snapcraft 构建需要登录到 Snap Store (对于此 GitHub Release 场景不需要)，
-        # 您可以添加 `with: snapcraft_token: ${{ secrets.SNAPCRAFT_TOKEN }}`
+      # 第二步：设置 Snapcraft 环境
+      - name: Install Snapcraft
+        uses: samuelmeuli/action-snapcraft@v3
 
-      # 第三步：查找构建生成的 .snap 文件
-      # 假设 Snapcraft 在当前工作目录生成了一个 .snap 文件
-      - name: Find snap file
-        id: find_snap
+      # 第三步：构建 Snap 包
+      - name: Build Snap package
+        id: build_snap
         run: |
-          echo "Current directory: $(pwd)"
-          echo "Listing files:"
-          ls -lha
-          # 此脚本假设在当前目录中只有一个 .snap 文件。
-          # 如果您的构建过程生成多个 .snap 文件或将其放置在其他位置，请相应调整。
-          file_path=$(ls -1 *.snap 2>/dev/null | head -n 1)
-          if [ -z "$file_path" ]; then
-            echo "Error: No .snap file found in the current directory."
-            exit 1
-          fi
-          echo "Snap file found: $file_path"
-          # 将文件路径和文件名设置为输出变量，供后续步骤使用
-          echo "SNAP_PATH=$file_path" >> $GITHUB_OUTPUT
-          echo "SNAP_NAME=$(basename "$file_path")" >> $GITHUB_OUTPUT
+          # 使用 snapcraft 构建 Snap 包
+          ln -sf snap/snapcraft.yaml qm/snapcraft.yaml
+          cd qm
+          snapcraft
+          # 查找构建的 .snap 文件
+          SNAP_PATH=$(find . -name '*.snap' | head -n 1)
+          SNAP_NAME=$(basename "$SNAP_PATH")
+          echo "SNAP_PATH=$SNAP_PATH" >> $GITHUB_ENV
+          echo "SNAP_NAME=$SNAP_NAME" >> $GITHUB_ENV
 
       # 第四步：创建 GitHub Release
       # 使用推送的标签名作为 Release 的标签和名称
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub 自动提供的 Token
-        with:
-          tag_name: ${{ github.ref_name }} # 获取当前触发工作流的标签名
-          release_name: Release ${{ github.ref_name }}
-          body: |
-            Automated release for tag ${{ github.ref_name }}.
-            Contains the Snap package built by GitHub Actions.
-          draft: false      # 设置为 true 可创建草稿 Release
-          prerelease: false # 设置为 true 可标记为预发布 Release
+      # - name: Create GitHub Release
+      #   id: create_release
+      #   uses: actions/create-release@v1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub 自动提供的 Token
+      #   with:
+      #     tag_name: ${{ github.ref_name }} # 获取当前触发工作流的标签名
+      #     release_name: Release ${{ github.ref_name }}
+      #     body: |
+      #       Automated release for tag ${{ github.ref_name }}.
+      #       Contains the Snap package built by GitHub Actions.
+      #     draft: false      # 设置为 true 可创建草稿 Release
+      #     prerelease: false # 设置为 true 可标记为预发布 Release
 
-      # 第五步：上传 .snap 文件到 Release
-      - name: Upload Release Asset (Snap package)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # 从上一步获取上传 URL
-          asset_path: ${{ steps.find_snap.outputs.SNAP_PATH }}       # 要上传的 .snap 文件路径
-          asset_name: ${{ steps.find_snap.outputs.SNAP_NAME }}       # 在 Release 中显示的文件名
-          asset_content_type: application/vnd.snap # .snap 文件的 MIME 类型
+      # # 第五步：上传 .snap 文件到 Release
+      # - name: Upload Release Asset (Snap package)
+      #   uses: actions/upload-release-asset@v1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.create_release.outputs.upload_url }} # 从上一步获取上传 URL
+      #     asset_path: ${{ steps.find_snap.outputs.SNAP_PATH }}       # 要上传的 .snap 文件路径
+      #     asset_name: ${{ steps.find_snap.outputs.SNAP_NAME }}       # 在 Release 中显示的文件名
+      #     asset_content_type: application/vnd.snap # .snap 文件的 MIME 类型
