@@ -24,21 +24,21 @@ jobs:
 
       # 第二步：设置 Snapcraft 环境
       - name: Install Snapcraft
-        uses: samuelmeuli/action-snapcraft@v3
+        uses: snapcore/action-build@v1
 
       # 第三步：构建 Snap 包
-      - name: Build Snap package
-        id: build_snap
-        run: |
-          # 使用 snapcraft 构建 Snap 包
-          cp snap/snapcraft.yaml qm
-          cd qm && ls
-          snapcraft
-          # 查找构建的 .snap 文件
-          SNAP_PATH=$(find . -name '*.snap' | head -n 1)
-          SNAP_NAME=$(basename "$SNAP_PATH")
-          echo "SNAP_PATH=$SNAP_PATH" >> $GITHUB_ENV
-          echo "SNAP_NAME=$SNAP_NAME" >> $GITHUB_ENV
+      # - name: Build Snap package
+      #   id: build_snap
+      #   run: |
+      #     # 使用 snapcraft 构建 Snap 包
+      #     cp snap/snapcraft.yaml qm
+      #     cd qm && ls
+      #     snapcraft
+      #     # 查找构建的 .snap 文件
+      #     SNAP_PATH=$(find . -name '*.snap' | head -n 1)
+      #     SNAP_NAME=$(basename "$SNAP_PATH")
+      #     echo "SNAP_PATH=$SNAP_PATH" >> $GITHUB_ENV
+      #     echo "SNAP_NAME=$SNAP_NAME" >> $GITHUB_ENV
 
       # 第四步：创建 GitHub Release
       # 使用推送的标签名作为 Release 的标签和名称
