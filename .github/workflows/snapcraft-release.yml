@@ -26,6 +26,13 @@ jobs:
       - name: Install Snapcraft
         uses: snapcore/action-build@v1
 
+      # 打印当前环境变量
+      - name: Print Environment Variables
+        if: always()
+        run: |
+          echo "Current Environment Variables:"
+          env
+
       # 第三步：构建 Snap 包
       # - name: Build Snap package
       #   id: build_snap
