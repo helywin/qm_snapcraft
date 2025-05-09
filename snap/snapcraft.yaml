@@ -1,4 +1,4 @@
-name: qmcraft
+name: qm
 version: '7.0.1'
 summary: QM 应用
 description: |
@@ -9,15 +9,14 @@ confinement: classic
 
 parts:
   qm-binary:
-    # dump 插件简单拷贝整个 release 目录
     plugin: dump
-    source: .
-    organize:
-      # 把 bin/qm、bin/libQt6Core.so.6 等都留在 bin/
-      "bin/*": bin/
-      "Resources/*": Resources/
-      "html/*": html/
-    # 如果 core22 已经自带 glibc ≥2.34/2.28，可直接依赖
+    source: ./qm
+    # organize:
+    #   "bin/*": bin/
+    #   "Resources/*": Resources/
+    #   "html/*": html/
+    build-packages:
+      - patchelf
     stage-packages:
       - libegl1
       - libgl1
@@ -39,48 +38,36 @@ parts:
       - libxcb-xkb1
       - libxkbcommon-x11-0
 
-  patch-binary:
-    plugin: dump
-    source: .
-    override-build: |
-      snapcraftctl build
-      for f in bin/qm bin/qmc bin/*.so* bin/platforms/libqxcb.so; do
-        patchelf --set-interpreter /snap/core22/current/lib64/ld-linux-x86-64.so.2 \
-                --set-rpath '$ORIGIN:/snap/core22/current/lib/x86_64-linux-gnu' \
-                $SNAPCRAFT_PART_BUILD/$f
+    override-prime: |
+      snapcraftctl prime
+
+      # 修改 bin 目录权限为 755 (rwxr-xr-x)
+      chmod -R 755 $SNAPCRAFT_PRIME/bin
+
+      # 处理可执行文件：设置解释器和rpath
+      for f in $SNAPCRAFT_PRIME/bin/qm $SNAPCRAFT_PRIME/bin/qmc; do
+        if [ -f "$f" ]; then
+          patchelf --set-interpreter /snap/core22/current/lib64/ld-linux-x86-64.so.2 \
+                  --set-rpath '$ORIGIN:/snap/core22/current/lib/x86_64-linux-gnu' \
+                  "$f"
+        fi
       done
-    build-packages:
-      - patchelf
-
-  # custom-glibc:
-  #   plugin: nil
-  #   # 从系统以外路径拉一个新 glibc 或者预先编译好的 tarball
-  #   # 你需先准备一个 glibc-2.34.tar.gz 放到项目里
-  #   source: ./glibc-2.34.tar.gz
-  #   stage:
-  #     - usr/lib/libc-2.34.so
-  #     - usr/lib/ld-2.34.so
-  #   stage-packages: []  # 不从 repos 拉
-  #   prime: []
-
-  # patch-binary:
-  #   plugin: dump
-  #   source: .
-  #   override-build: |
-  #     set -eux
-  #     snapcraftctl build
-  #     # 用 patchelf 修改动态链接器和 rpath
-  #     for bin in bin/qm bin/qmc; do
-  #       patchelf --set-interpreter $SNAP/custom-glibc/usr/lib/ld-2.34.so \
-  #               --set-rpath '$SNAP/custom-glibc/usr/lib:$ORIGIN' $SNAPCRAFT_PART_BUILD/$bin
-  #     done
-  #   build-packages:
-  #     - patchelf
+      
+      # 处理共享库：只设置rpath，不设置解释器
+      for f in $SNAPCRAFT_PRIME/bin/*.so* $SNAPCRAFT_PRIME/bin/platforms/libqxcb.so; do
+        if [ -f "$f" ]; then
+          patchelf --set-rpath '$ORIGIN:/snap/core22/current/lib/x86_64-linux-gnu' "$f"
+        fi
+      done
 
 apps:
   qm:
     command: bin/qm
     plugs: [desktop, x11, wayland, opengl]
-    # environment:
-      # 优先用自带 glibc/libQt
-      # LD_LIBRARY_PATH: $SNAP/custom-glibc/usr/lib:$SNAP/bin
+    environment:
+      LD_LIBRARY_PATH: $SNAP/usr/lib/x86_64-linux-gnu:$SNAP/bin:$LD_LIBRARY_PATH
+  qmc:
+    command: bin/qmc
+    plugs: [desktop, x11, wayland, opengl]
+    environment:
+      LD_LIBRARY_PATH: $SNAP/usr/lib/x86_64-linux-gnu:$SNAP/bin:$LD_LIBRARY_PATH
