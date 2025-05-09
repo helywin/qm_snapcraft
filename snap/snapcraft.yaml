@@ -18,10 +18,39 @@ parts:
       "Resources/*": Resources/
       "html/*": html/
     # 如果 core22 已经自带 glibc ≥2.34/2.28，可直接依赖
-    # stage-packages:
-    #   - libstdc++6
-    #   - libglib2.0-0
-    #   - libc6
+    stage-packages:
+      - libegl1
+      - libgl1
+      - libx11-6
+      - libfontconfig1
+      - libxkbcommon0
+      - libxcb1
+      - libxcb-cursor0
+      - libxcb-icccm4
+      - libxcb-image0
+      - libxcb-keysyms1
+      - libxcb-randr0
+      - libxcb-render-util0
+      - libxcb-render0
+      - libxcb-shape0
+      - libxcb-shm0
+      - libxcb-sync1
+      - libxcb-xfixes0
+      - libxcb-xkb1
+      - libxkbcommon-x11-0
+
+  patch-binary:
+    plugin: dump
+    source: .
+    override-build: |
+      snapcraftctl build
+      for f in bin/qm bin/qmc bin/*.so* bin/platforms/libqxcb.so; do
+        patchelf --set-interpreter /snap/core22/current/lib64/ld-linux-x86-64.so.2 \
+                --set-rpath '$ORIGIN:/snap/core22/current/lib/x86_64-linux-gnu' \
+                $SNAPCRAFT_PART_BUILD/$f
+      done
+    build-packages:
+      - patchelf
 
   # custom-glibc:
   #   plugin: nil
