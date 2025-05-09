@@ -11,7 +11,7 @@ parts:
   qm-binary:
     # dump 插件简单拷贝整个 release 目录
     plugin: dump
-    source: $SNAPCRAFT_PROJECT_DIR/qm
+    source: .
     organize:
       # 把 bin/qm、bin/libQt6Core.so.6 等都留在 bin/
       "bin/*": bin/
