@@ -1,6 +1,6 @@
 # Description
 
-[中文](README.zh.md) | [English](README.md)
+[中文](README.zh.md) | [English](README.en.md)
 
 Package the QM state machine UI editing tool via snapcraft using Github Actions, enabling it to run on lower versions of Ubuntu.
 
