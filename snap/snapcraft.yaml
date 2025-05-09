@@ -1,4 +1,4 @@
-name: qm
+name: qmcraft
 version: '7.0.1'
 summary: QM 应用
 description: |
@@ -6,6 +6,29 @@ description: |
 base: core22
 grade: stable
 confinement: classic
+
+# assumes:
+#   - snapd2.43
+#   - command-chain
+
+# plugs:
+#   # 添加标准桌面应用所需插件
+#   gnome-42-2204:
+#     interface: content
+#     target: $SNAP/gnome-platform
+#     default-provider: gnome-42-2204
+#   gtk-3-themes:
+#     interface: content
+#     target: $SNAP/data-dir/themes
+#     default-provider: gtk-common-themes
+#   icon-themes:
+#     interface: content
+#     target: $SNAP/data-dir/icons
+#     default-provider: gtk-common-themes
+#   sound-themes:
+#     interface: content
+#     target: $SNAP/data-dir/sounds
+#     default-provider: gtk-common-themes
 
 parts:
   qm-binary:
@@ -37,6 +60,9 @@ parts:
       - libxcb-xfixes0
       - libxcb-xkb1
       - libxkbcommon-x11-0
+      - libc6
+      - libstdc++6
+      - libpthread-stubs0-dev
 
     override-prime: |
       snapcraftctl prime
@@ -48,26 +74,56 @@ parts:
       for f in $SNAPCRAFT_PRIME/bin/qm $SNAPCRAFT_PRIME/bin/qmc; do
         if [ -f "$f" ]; then
           patchelf --set-interpreter /snap/core22/current/lib64/ld-linux-x86-64.so.2 \
-                  --set-rpath '$ORIGIN:/snap/core22/current/lib/x86_64-linux-gnu' \
+                  --set-rpath '$ORIGIN:/snap/core22/current/lib/x86_64-linux-gnu:/snap/core22/current/usr/lib/x86_64-linux-gnu' \
                   "$f"
+          # 确保不使用宿主机的 libpthread
+          patchelf --replace-needed libpthread.so.0 /snap/core22/current/lib/x86_64-linux-gnu/libpthread.so.0 "$f"
         fi
       done
       
       # 处理共享库：只设置rpath，不设置解释器
       for f in $SNAPCRAFT_PRIME/bin/*.so* $SNAPCRAFT_PRIME/bin/platforms/libqxcb.so; do
         if [ -f "$f" ]; then
-          patchelf --set-rpath '$ORIGIN:/snap/core22/current/lib/x86_64-linux-gnu' "$f"
+          patchelf --set-rpath '$ORIGIN:/snap/core22/current/lib/x86_64-linux-gnu:/snap/core22/current/usr/lib/x86_64-linux-gnu' "$f"
         fi
       done
 
 apps:
   qm:
     command: bin/qm
-    plugs: [desktop, x11, wayland, opengl]
+    plugs:
+      - home
+      - network
+      - desktop
+      - x11
+      - wayland
+      - opengl
+      # - gnome-42-2204
+      # - gtk-3-themes
+      # - icon-themes
+      # - sound-themes
+    # extensions:
+    #   - gnome
     environment:
-      LD_LIBRARY_PATH: $SNAP/usr/lib/x86_64-linux-gnu:$SNAP/bin:$LD_LIBRARY_PATH
+      LD_LIBRARY_PATH: $SNAP/usr/lib/x86_64-linux-gnu:$SNAP/bin:$SNAP/lib/x86_64-linux-gnu:/snap/core22/current/lib/x86_64-linux-gnu:/snap/core22/current/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+      XDG_DATA_DIRS: $XDG_DATA_DIRS:$SNAP/share:$SNAP/usr/share
+      
   qmc:
     command: bin/qmc
-    plugs: [desktop, x11, wayland, opengl]
+    plugs:
+      - home
+      - network
+      - desktop
+      - x11
+      - wayland
+      - opengl
+      # - gnome-42-2204
+      # - gtk-3-themes
+      # - icon-themes
+      # - sound-themes
+    # extensions:
+    #   - gnome
     environment:
-      LD_LIBRARY_PATH: $SNAP/usr/lib/x86_64-linux-gnu:$SNAP/bin:$LD_LIBRARY_PATH
+      LD_LIBRARY_PATH: $SNAP/usr/lib/x86_64-linux-gnu:$SNAP/bin:$SNAP/lib/x86_64-linux-gnu:/snap/core22/current/lib/x86_64-linux-gnu:/snap/core22/current/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+      XDG_DATA_DIRS: $XDG_DATA_DIRS:$SNAP/share:$SNAP/usr/share
+      
